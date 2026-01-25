@@ -1,0 +1,751 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap');
+
+/* --- RESET & STRUCTURE --- */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  /* Allow scroll for content pages, handled by app-root */
+  font-family: 'Outfit', sans-serif;
+  background-color: var(--bg-color);
+  /* Fallback */
+}
+
+/* --- THEME VARIABLES --- */
+:root {
+  /* Default (Cosmic) */
+  --bg-color: #1e293b;
+  --bg-pattern: #334155;
+  --card-bg: rgba(51, 65, 85, 0.8);
+  --card-border: rgba(148, 163, 184, 0.2);
+  --text-main: #f8fafc;
+  --text-sub: #cbd5e1;
+  --accent: #a78bfa;
+  --accent-glow: rgba(167, 139, 250, 0.3);
+  --link-color: #475569;
+  --status-alive: #34d399;
+  --status-deceased: #f87171;
+  --toggle-bg: rgba(30, 41, 59, 0.8);
+  --nav-bg: rgba(15, 23, 42, 0.9);
+  --tree-line: #ffffff;
+}
+
+.theme-blue {
+  --bg-color: #1e1b4b;
+  --bg-pattern: #312e81;
+  --card-bg: rgba(49, 46, 129, 0.8);
+  --card-border: rgba(96, 165, 250, 0.2);
+  --text-main: #eff6ff;
+  --text-sub: #bfdbfe;
+  --accent: #7dd3fc;
+  --accent-glow: rgba(56, 189, 248, 0.3);
+  --link-color: #312e81;
+  --status-alive: #22d3ee;
+  --nav-bg: rgba(15, 23, 42, 0.9);
+  --tree-line: #ffffff;
+}
+
+.theme-green {
+  --bg-color: #064e3b;
+  --bg-pattern: #065f46;
+  --card-bg: rgba(6, 95, 70, 0.8);
+  --card-border: rgba(52, 211, 153, 0.2);
+  --text-main: #f0fdf4;
+  --text-sub: #6ee7b7;
+  --accent: #fcd34d;
+  --accent-glow: rgba(251, 191, 36, 0.3);
+  --link-color: #065f46;
+  --status-alive: #34d399;
+  --nav-bg: rgba(2, 44, 34, 0.9);
+  --tree-line: #ffffff;
+}
+
+.theme-purple {
+  --bg-color: #4c1d95;
+  --bg-pattern: #5b21b6;
+  --card-bg: rgba(91, 33, 182, 0.7);
+  --card-border: rgba(216, 180, 254, 0.2);
+  --text-main: #faf5ff;
+  --text-sub: #e9d5ff;
+  --accent: #ddd6fe;
+  --accent-glow: rgba(192, 132, 252, 0.3);
+  --link-color: #6b21a8;
+  --status-alive: #a855f7;
+  --nav-bg: rgba(46, 16, 101, 0.9);
+  --tree-line: #ffffff;
+}
+
+.theme-crimson {
+  --bg-color: #4c0519;
+  --bg-pattern: #831843;
+  --card-bg: rgba(131, 24, 67, 0.7);
+  --card-border: rgba(251, 113, 133, 0.25);
+  --text-main: #fff1f2;
+  --text-sub: #fecdd3;
+  --accent: #fb7185;
+  --accent-glow: rgba(244, 63, 94, 0.4);
+  --link-color: #9f1239;
+  --status-alive: #f472b6;
+  --nav-bg: rgba(44, 4, 16, 0.9);
+  --tree-line: #ffffff;
+}
+
+.theme-light {
+  --bg-color: #f8fafc;
+  --bg-pattern: #e2e8f0;
+  --card-bg: rgba(255, 255, 255, 0.95);
+  --card-border: rgba(148, 163, 184, 0.3);
+  --text-main: #1e293b;
+  --text-sub: #64748b;
+  --accent: #0ea5e9;
+  --accent-glow: rgba(59, 130, 246, 0.2);
+  --link-color: #cbd5e1;
+  --status-alive: #16a34a;
+  /* Green */
+  --status-deceased: #dc2626;
+  /* Red */
+  --toggle-bg: rgba(255, 255, 255, 0.9);
+  --nav-bg: rgba(255, 255, 255, 0.9);
+  --tree-line: #94a3b8;
+}
+
+/* --- LAYOUT --- */
+.app-root {
+  min-height: 100vh;
+  background-color: var(--bg-color);
+  background-image:
+    linear-gradient(var(--bg-pattern) 1px, transparent 1px),
+    linear-gradient(90deg, var(--bg-pattern) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-attachment: fixed;
+  color: var(--text-main);
+  transition: background 0.5s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+  position: relative;
+  /* For TreePage absolute positioning */
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- NAVBAR --- */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--card-border);
+  background: var(--nav-bg);
+  padding: 0 24px;
+  height: 64px;
+}
+
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-brand {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-main);
+  text-decoration: none;
+  letter-spacing: -0.05em;
+}
+
+.nav-brand span {
+  color: var(--accent);
+}
+
+.nav-links {
+  display: flex;
+  gap: 8px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  color: var(--text-sub);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.nav-item:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-item.active {
+  color: var(--accent);
+  background: var(--card-border);
+}
+
+/* --- PAGE CONTAINERS --- */
+.page-container {
+  padding: 40px 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.5s ease;
+}
+
+.tree-container {
+  /* Tree needs full absolute flex */
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+}
+
+/* Tree Path / Line Styling */
+.rd3t-link {
+  stroke: var(--tree-line) !important;
+  stroke-width: 2.5px !important;
+  transition: stroke 0.4s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- HOME PAGE --- */
+.home-page {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.hero-section h1 {
+  font-size: 3.5rem;
+  margin: 0 0 16px;
+  line-height: 1.1;
+}
+
+.hero-section h1 span {
+  background: linear-gradient(135deg, var(--accent), var(--status-alive));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-section .subtitle {
+  font-size: 1.25rem;
+  color: var(--text-sub);
+  max-width: 600px;
+  margin: 0 auto 48px;
+}
+
+.cta-group {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.cta-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  padding: 32px;
+  border-radius: 16px;
+  text-align: left;
+  text-decoration: none;
+  width: 280px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--text-main);
+}
+
+.cta-card:hover {
+  transform: translateY(-8px);
+  border-color: var(--accent);
+  box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.3);
+}
+
+.icon-wrapper {
+  width: 56px;
+  height: 56px;
+  background: var(--card-border);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  color: var(--accent);
+}
+
+.cta-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+}
+
+.cta-card p {
+  margin: 0;
+  color: var(--text-sub);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* --- CONTENT PAGES (History/Feedback) --- */
+.content-wrapper {
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  padding: 40px;
+  border-radius: 20px;
+  backdrop-filter: blur(20px);
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  border-bottom: 1px solid var(--card-border);
+  padding-bottom: 24px;
+}
+
+.lang-toggle {
+  display: flex;
+  background: var(--card-border);
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.lang-toggle button {
+  padding: 6px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-sub);
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.2s;
+}
+
+.lang-toggle button.active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.history-text {
+  line-height: 1.8;
+  color: var(--text-main);
+  font-size: 1.05rem;
+}
+
+.history-text h3 {
+  color: var(--accent);
+  margin-top: 32px;
+}
+
+/* --- FORMS --- */
+.form-group {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 1rem;
+  transition: 0.2s;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.submit-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: 0.2s;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: var(--status-alive);
+  transform: translateY(-2px);
+}
+
+.submit-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.status-msg {
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+}
+
+.status-msg.success {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--status-alive);
+  border: 1px solid var(--status-alive);
+}
+
+.status-msg.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid #ef4444;
+}
+
+.dev-note {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px dashed var(--card-border);
+  color: var(--text-sub);
+  font-size: 0.85rem;
+}
+
+/* --- LEAVE EXISTING TREE STYLES (NodeCard & Controls) --- */
+.node-card {
+  /* Reset */
+  padding: 0;
+  width: 200px;
+  height: auto;
+  background: transparent;
+  cursor: pointer;
+  font-family: 'Outfit', sans-serif;
+}
+
+.node-wrapper {
+  display: flex;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Removed old status line from CSS, will use dot */
+.status-line {
+  width: 4px;
+  flex-shrink: 0;
+  display: none;
+  /* Hiding the old line */
+}
+
+/* --- GLOWING DOTS --- */
+.status-dot-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  position: relative;
+}
+
+.status-dot.alive {
+  background-color: var(--status-alive);
+  box-shadow: 0 0 8px var(--status-alive);
+  animation: pulse-green 2s infinite;
+}
+
+.status-dot.deceased {
+  background-color: var(--status-deceased);
+  box-shadow: 0 0 5px var(--status-deceased);
+  /* No pulse for deceased usually, but user asked for glowing. Lets give it a steady glow or slow pulse */
+  animation: pulse-red 3s infinite;
+}
+
+@keyframes pulse-green {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+@keyframes pulse-red {
+  0% {
+    box-shadow: 0 0 4px var(--status-deceased);
+    opacity: 0.8;
+  }
+
+  50% {
+    box-shadow: 0 0 10px var(--status-deceased);
+    opacity: 1;
+  }
+
+  100% {
+    box-shadow: 0 0 4px var(--status-deceased);
+    opacity: 0.8;
+  }
+}
+
+.node-content {
+  padding: 10px 12px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.node-header {
+  display: flex;
+  align-items: center;
+  /* Align dot and text */
+}
+
+.node-wrapper:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.3), 0 0 0 1px var(--accent);
+}
+
+.node-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-main);
+}
+
+.node-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-sub);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.node-icon {
+  color: var(--accent);
+  opacity: 0.8;
+  display: flex;
+  align-items: center;
+}
+
+.node-value {
+  color: var(--text-main);
+  opacity: 0.9;
+}
+
+/* Control Panels for Tree */
+.controls-panel {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 16px;
+  z-index: 100;
+}
+
+.zoom-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--toggle-bg);
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.control-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--text-sub);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.2s;
+}
+
+.control-btn:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.settings-toggle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 8px 20px var(--accent-glow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+}
+
+.settings-toggle:hover {
+  transform: rotate(90deg) scale(1.05);
+}
+
+.settings-menu {
+  position: absolute;
+  width: 300px;
+  background: var(--toggle-bg);
+  border: 1px solid var(--card-border);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  animation: fadeIn 0.3s;
+}
+
+.settings-group h3 {
+  margin: 0 0 12px 0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--text-sub);
+  font-weight: 700;
+}
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+.theme-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.theme-btn:hover {
+  transform: scale(1.15);
+}
+
+.style-options {
+  display: flex;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px;
+  border-radius: 10px;
+}
+
+.style-btn {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-sub);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.style-btn.active {
+  background: var(--card-bg);
+  color: var(--text-main);
+}
+
+/* Common Responsive */
+@media (max-width: 768px) {
+  .nav-links span {
+    display: none;
+  }
+
+  .hero-section h1 {
+    font-size: 2.5rem;
+  }
+
+  .content-wrapper {
+    padding: 20px;
+  }
+
+  .tree-container {
+    bottom: 0;
+  }
+}
