@@ -476,12 +476,15 @@ textarea:focus {
   display: flex;
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(4px);
+  /* Reduced from 12px for performance */
+  -webkit-backdrop-filter: blur(4px);
   border-radius: 8px;
   overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.2s;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  will-change: transform;
+  /* Hint for browser optimization */
 }
 
 /* Removed old status line from CSS, will use dot */
@@ -570,7 +573,7 @@ textarea:focus {
 
 .node-wrapper:hover {
   transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.3), 0 0 0 1px var(--accent);
+  border-color: var(--accent);
 }
 
 .node-name {

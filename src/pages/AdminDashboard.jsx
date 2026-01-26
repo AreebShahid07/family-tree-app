@@ -3,7 +3,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Save, UserPlus, Trash2, Edit2, LogOut, Settings,
-    UploadCloud, Search, X, User, Users, Heart
+    UploadCloud, Search, X, User, Users, Heart,
+    ChevronRight, ChevronLeft, Home
 } from 'lucide-react';
 import './Admin.css';
 
@@ -14,6 +15,7 @@ export default function AdminDashboard({ treeData, setTreeData, cloudUrl }) {
     const [search, setSearch] = useState('');
     const [view, setView] = useState('table'); // 'table' or 'settings'
     const [isSyncing, setIsSyncing] = useState(false);
+    const [viewPath, setViewPath] = useState([]); // Array of { branch_id, name }
 
     const navigate = useNavigate();
 
@@ -37,11 +39,55 @@ export default function AdminDashboard({ treeData, setTreeData, cloudUrl }) {
         return members;
     }, [treeData]);
 
-    // Filtered List for Search
-    const filteredList = flattenedList.filter(m =>
-        m.name.toLowerCase().includes(search.toLowerCase()) ||
-        (m.spouse && m.spouse.toLowerCase().includes(search.toLowerCase()))
-    );
+    // List for display based on navigation or search
+    const displayList = useMemo(() => {
+        if (!treeData) return [];
+
+        if (search) {
+            return flattenedList.filter(m =>
+                m.name.toLowerCase().includes(search.toLowerCase()) ||
+                (m.spouse && m.spouse.toLowerCase().includes(search.toLowerCase()))
+            );
+        }
+
+        if (viewPath.length === 0) {
+            return [{ ...treeData, parentName: "Source" }];
+        }
+
+        const currentId = viewPath[viewPath.length - 1].branch_id;
+
+        const findNode = (root, id) => {
+            if (root.branch_id === id) return root;
+            if (root.children) {
+                for (let child of root.children) {
+                    const found = findNode(child, id);
+                    if (found) return found;
+                }
+            }
+            return null;
+        };
+
+        const node = findNode(treeData, currentId);
+        return node && node.children ? node.children.map(c => ({ ...c, parentName: node.name })) : [];
+    }, [treeData, search, flattenedList, viewPath]);
+
+    const navigateTo = (member) => {
+        if (!member.children || member.children.length === 0 && member.branch_id !== treeData.branch_id) {
+            // If no children, just edit? No, user said "show children"
+            // We should allow navigating even if no children yet to add children
+        }
+        setViewPath([...viewPath, { branch_id: member.branch_id, name: member.name }]);
+        setSearch('');
+    };
+
+    const navigateBack = (index) => {
+        if (index === -1) {
+            setViewPath([]);
+        } else {
+            setViewPath(viewPath.slice(0, index + 1));
+        }
+        setSearch('');
+    };
 
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -155,6 +201,29 @@ export default function AdminDashboard({ treeData, setTreeData, cloudUrl }) {
 
                 {view === 'table' && (
                     <div className="table-container">
+                        {/* Breadcrumbs */}
+                        {!search && (
+                            <div className="admin-breadcrumbs">
+                                <span
+                                    className={`breadcrumb-item ${viewPath.length === 0 ? 'active' : ''}`}
+                                    onClick={() => navigateBack(-1)}
+                                >
+                                    <Home size={14} /> Root
+                                </span>
+                                {viewPath.map((path, idx) => (
+                                    <React.Fragment key={path.branch_id}>
+                                        <ChevronRight size={14} className="breadcrumb-separator" />
+                                        <span
+                                            className={`breadcrumb-item ${idx === viewPath.length - 1 ? 'active' : ''}`}
+                                            onClick={() => navigateBack(idx)}
+                                        >
+                                            {path.name}
+                                        </span>
+                                    </React.Fragment>
+                                ))}
+                            </div>
+                        )}
+
                         <table className="admin-table">
                             <thead>
                                 <tr>
@@ -167,7 +236,7 @@ export default function AdminDashboard({ treeData, setTreeData, cloudUrl }) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredList.map(member => (
+                                {displayList.map(member => (
                                     <tr key={member.branch_id}>
                                         <td style={{ fontWeight: 600 }}>{member.name}</td>
                                         <td>
@@ -182,6 +251,9 @@ export default function AdminDashboard({ treeData, setTreeData, cloudUrl }) {
                                             <div style={{ display: 'flex', gap: '8px' }}>
                                                 <button className="sidebar-btn active" style={{ padding: '6px' }} title="Edit" onClick={() => { setSelectedNode(member); setFormData(member); }}>
                                                     <Edit2 size={16} />
+                                                </button>
+                                                <button className="sidebar-btn" style={{ padding: '6px', color: '#0ea5e9' }} title="Show Children" onClick={() => navigateTo(member)}>
+                                                    <Users size={16} />
                                                 </button>
                                                 <button className="sidebar-btn" style={{ padding: '6px', color: '#10b981' }} title="Add Child" onClick={() => handleAddChild(member)}>
                                                     <UserPlus size={16} />
