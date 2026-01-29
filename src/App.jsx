@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import TreePage from './pages/TreePage';
@@ -93,6 +94,7 @@ export default function App() {
             />
           </Routes>
         </main>
+        <Analytics />
       </div>
     </Router>
   );
