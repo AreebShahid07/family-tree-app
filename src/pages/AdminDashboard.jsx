@@ -230,8 +230,6 @@ export default function AdminDashboard({ treeData, setTreeData, cloudUrl }) {
                                     <th>Name</th>
                                     <th>Status</th>
                                     <th>Spouse</th>
-                                    <th>DOB</th>
-                                    <th>DOD</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -245,8 +243,6 @@ export default function AdminDashboard({ treeData, setTreeData, cloudUrl }) {
                                             </span>
                                         </td>
                                         <td>{member.spouse || '-'}</td>
-                                        <td>{member.dob || '-'}</td>
-                                        <td>{member.dod || '-'}</td>
                                         <td>
                                             <div style={{ display: 'flex', gap: '8px' }}>
                                                 <button className="sidebar-btn active" style={{ padding: '6px' }} title="Edit" onClick={() => { setSelectedNode(member); setFormData(member); }}>
@@ -306,20 +302,6 @@ export default function AdminDashboard({ treeData, setTreeData, cloudUrl }) {
                             <div className="form-group">
                                 <label>Spouse Name</label>
                                 <input name="spouse" value={formData.spouse || ''} onChange={handleChange} />
-                            </div>
-                            <div className="form-group">
-                                <label>Date of Birth (DOB)</label>
-                                <input name="dob" value={formData.dob || ''} onChange={handleChange} placeholder="e.g. 1950-01-01" />
-                            </div>
-                            {formData.status === 'Deceased' && (
-                                <div className="form-group">
-                                    <label>Date of Death (DOD)</label>
-                                    <input name="dod" value={formData.dod || ''} onChange={handleChange} placeholder="e.g. 2020-05-15" />
-                                </div>
-                            )}
-                            <div className="form-group">
-                                <label>Current Location</label>
-                                <input name="location" value={formData.location || ''} onChange={handleChange} />
                             </div>
                         </div>
 

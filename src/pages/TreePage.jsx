@@ -4,12 +4,10 @@ import Tree from 'react-d3-tree';
 import '../index.css';
 
 // --- ICONS ---
-import { Heart, Calendar, MapPin, Users as UsersIcon } from 'lucide-react';
+import { Heart, Users as UsersIcon } from 'lucide-react';
 
 // --- ICONS (Beautiful Lucide Icons) ---
 const HeartIcon = () => <Heart size={12} fill="#ef4444" color="#ef4444" />;
-const CalendarIcon = () => <Calendar size={12} color="var(--accent)" />;
-const MapIcon = () => <MapPin size={12} color="var(--accent)" />;
 const UserIcon = () => <UsersIcon size={12} color="var(--accent)" />;
 
 // --- CONTROL ICONS ---
@@ -19,10 +17,8 @@ const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" he
 const FullScreenIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" /></svg>;
 
 const NodeCard = React.memo(({ nodeDatum, toggleNode, orientation }) => {
-    const { name, dob, spouse, location, status } = nodeDatum;
+    const { name, spouse, status } = nodeDatum;
     const hasSpouse = spouse && spouse !== "Unknown";
-    const hasDob = dob;
-    const hasLoc = location;
     const isDeceased = status === 'Deceased';
     const childrenCount = nodeDatum.children ? nodeDatum.children.length : 0;
 
@@ -45,20 +41,6 @@ const NodeCard = React.memo(({ nodeDatum, toggleNode, orientation }) => {
                                 <div className="node-row" title={`Spouse: ${spouse}`}>
                                     <span className="node-icon"><HeartIcon /></span>
                                     <span className="node-value">{spouse}</span>
-                                </div>
-                            )}
-                            {hasDob && (
-                                <div className="node-row">
-                                    <span className="node-icon"><CalendarIcon /></span>
-                                    <span className="node-value">
-                                        {dob} {isDeceased && nodeDatum.dod ? ` to ${nodeDatum.dod}` : ''}
-                                    </span>
-                                </div>
-                            )}
-                            {hasLoc && (
-                                <div className="node-row">
-                                    <span className="node-icon"><MapIcon /></span>
-                                    <span className="node-value">{location}</span>
                                 </div>
                             )}
                             {childrenCount > 0 && nodeDatum.__rd3t.collapsed && (
