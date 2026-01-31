@@ -289,6 +289,10 @@ export default function AdminDashboard({ treeData, setTreeData, cloudUrl }) {
                         <h2>Edit Member Details</h2>
                         <div className="form-grid">
                             <div className="form-group">
+                                <label>Identity Number</label>
+                                <input name="branch_id" value={formData.branch_id || ''} onChange={handleChange} placeholder="e.g. 01.01.01" />
+                            </div>
+                            <div className="form-group">
                                 <label>Full Name</label>
                                 <input name="name" value={formData.name || ''} onChange={handleChange} />
                             </div>

@@ -91,12 +91,30 @@ export default function TreePage({ theme, setTheme, treeData }) {
 
 
 
-    if (!treeData) return <div className="page-container">No records found.</div>;
+    // Sort data for consistent display order
+    const sortedTreeData = React.useMemo(() => {
+        if (!treeData) return null;
+        const sortRecursive = (node) => {
+            const newNode = { ...node };
+            if (newNode.children) {
+                newNode.children = [...newNode.children].sort((a, b) =>
+                    (a.branch_id || '').localeCompare(b.branch_id || '', undefined, { numeric: true })
+                );
+                newNode.children = newNode.children.map(sortRecursive);
+            }
+            return newNode;
+        };
+        // Handle if treeData is array or object
+        if (Array.isArray(treeData)) return treeData.map(sortRecursive);
+        return sortRecursive(treeData);
+    }, [treeData]);
+
+    if (!sortedTreeData) return <div className="page-container">No records found.</div>;
 
     return (
         <div className="tree-container" ref={treeContainerRef}>
             <Tree
-                data={treeData}
+                data={sortedTreeData}
                 translate={translate}
                 scale={zoom}
                 renderCustomNodeElement={(rd3tProps) => <NodeCard {...rd3tProps} orientation={orientation} />}
