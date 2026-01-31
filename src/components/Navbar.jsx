@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Network, History, MessageSquare } from 'lucide-react';
+import { Home, Network, History, MessageSquare, Table } from 'lucide-react';
 
 export default function Navbar() {
     const location = useLocation();
@@ -22,6 +22,10 @@ export default function Navbar() {
                     <Link to="/tree" className={`nav-item ${isActive('/tree')}`}>
                         <Network size={18} />
                         <span>Tree</span>
+                    </Link>
+                    <Link to="/registry" className={`nav-item ${isActive('/registry')}`}>
+                        <Table size={18} />
+                        <span>Registry</span>
                     </Link>
                     <Link to="/history" className={`nav-item ${isActive('/history')}`}>
                         <History size={18} />
