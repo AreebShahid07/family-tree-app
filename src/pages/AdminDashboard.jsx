@@ -121,7 +121,8 @@ export default function AdminDashboard({ treeData, setTreeData, cloudUrl }) {
     };
 
     const handleSaveNode = () => {
-        const newTree = updateNodeInTree({ ...treeData }, formData.branch_id, (node) => ({ ...node, ...formData }));
+        // Use selectedNode.branch_id to find the original node, then update it with new formData (which may have a new branch_id)
+        const newTree = updateNodeInTree({ ...treeData }, selectedNode.branch_id, (node) => ({ ...node, ...formData }));
         setTreeData(newTree);
         saveToCloud(newTree);
         setSelectedNode(null);

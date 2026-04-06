@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Network, History, MessageSquare, Table, FileText } from 'lucide-react';
+import { Home, Network, History, MessageSquare, Table, FileText, BarChart2 } from 'lucide-react';
 
 export default function Navbar() {
     const location = useLocation();
@@ -30,6 +30,10 @@ export default function Navbar() {
                     <Link to="/documents" className={`nav-item ${isActive('/documents')}`}>
                         <FileText size={18} />
                         <span>Records</span>
+                    </Link>
+                    <Link to="/stats" className={`nav-item ${isActive('/stats')}`}>
+                        <BarChart2 size={18} />
+                        <span>Stats</span>
                     </Link>
                     <Link to="/history" className={`nav-item ${isActive('/history')}`}>
                         <History size={18} />

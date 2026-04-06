@@ -9,6 +9,7 @@ import HistoryPage from './pages/History';
 import FeedbackPage from './pages/Feedback';
 import TablePage from './pages/TablePage';
 import DocumentsPage from './pages/DocumentsPage';
+import StatisticsPage from './pages/StatisticsPage';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import localTreeData from './family_tree_data.json'; // Fallback
@@ -86,6 +87,7 @@ export default function App() {
               element={<TreePage theme={theme} setTheme={setTheme} treeData={treeData} />}
             />
             <Route path="/registry" element={<TablePage treeData={treeData} />} />
+            <Route path="/stats" element={<StatisticsPage treeData={treeData} />} />
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/feedback" element={<FeedbackPage cloudUrl={CLOUD_API_URL} />} />
