@@ -995,3 +995,168 @@ textarea:focus {
   opacity: 0.3;
 }
 
+@media (max-width: 900px) {
+  .navbar {
+    padding: 0 12px;
+    height: 60px;
+  }
+
+  .nav-container {
+    gap: 10px;
+  }
+
+  .nav-brand {
+    font-size: 1.15rem;
+    white-space: nowrap;
+  }
+
+  .nav-links {
+    flex: 1;
+    justify-content: flex-end;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav-item {
+    padding: 8px 10px;
+    flex: 0 0 auto;
+  }
+
+  .registry-header {
+    padding: 0;
+    gap: 10px;
+  }
+
+  .search-bar,
+  .search-bar:focus-within,
+  .jump-bar {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .table-responsive {
+    max-height: calc(100vh - 250px);
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .registry-table {
+    min-width: 680px;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: 20px 12px;
+  }
+
+  .hero-section h1 {
+    font-size: 2.1rem;
+  }
+
+  .hero-section .subtitle {
+    font-size: 1rem;
+    margin-bottom: 28px;
+  }
+
+  .cta-card {
+    width: 100%;
+    max-width: 420px;
+    padding: 24px;
+  }
+
+  .content-wrapper {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .controls-panel {
+    right: 12px;
+    bottom: 12px;
+    gap: 10px;
+  }
+
+  .settings-toggle {
+    width: 48px;
+    height: 48px;
+  }
+
+  .zoom-group {
+    padding: 6px;
+  }
+
+  .control-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .settings-menu {
+    width: min(320px, calc(100vw - 24px));
+    right: 0;
+    top: auto;
+    bottom: 62px;
+    padding: 16px;
+  }
+
+  .registry-header h2 {
+    font-size: 1.35rem;
+  }
+
+  .badge-count {
+    margin-left: 8px;
+  }
+
+  .registry-table th,
+  .registry-table td {
+    padding: 12px 14px;
+  }
+
+  .id-cell {
+    padding-left: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar {
+    height: 56px;
+    padding: 0 8px;
+  }
+
+  .nav-brand {
+    font-size: 1rem;
+  }
+
+  .nav-links {
+    gap: 4px;
+  }
+
+  .nav-item {
+    padding: 8px;
+    border-radius: 7px;
+  }
+
+  .nav-item svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .hero-section h1 {
+    font-size: 1.85rem;
+  }
+
+  .registry-table {
+    min-width: 620px;
+  }
+
+  .name-cell {
+    gap: 6px;
+  }
+}
+
