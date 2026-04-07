@@ -2,8 +2,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock } from 'lucide-react';
+import { loginAdmin } from '../services/dataService';
 
-export default function AdminLogin({ cloudUrl }) {
+export default function AdminLogin() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [status, setStatus] = useState('idle');
@@ -14,28 +15,17 @@ export default function AdminLogin({ cloudUrl }) {
         setStatus('loading');
 
         try {
-            // PRO TIP: Using GET for login on Google Apps Script is way more reliable 
-            // due to how Google handles CORS (security) on their servers.
-            const url = `${cloudUrl}?action=login&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+            const result = await loginAdmin(username, password);
 
-            const res = await fetch(url);
-            const data = await res.json();
-
-            if (data.success) {
-                localStorage.setItem('admin_token', data.token);
+            if (result?.token) {
+                localStorage.setItem('admin_token', result.token);
                 navigate('/admin/dashboard');
             } else {
                 setStatus('error');
             }
         } catch (err) {
             console.error("Login attempt failed:", err);
-            // Fallback for safety during setup
-            if (username === 'admin' && password === '123') {
-                localStorage.setItem('admin_token', 'temp-session');
-                navigate('/admin/dashboard');
-            } else {
-                setStatus('error');
-            }
+            setStatus('error');
         }
     };
 
@@ -46,7 +36,7 @@ export default function AdminLogin({ cloudUrl }) {
                     <Lock size={48} />
                 </div>
                 <h2>Family Admin</h2>
-                <p className="subtitle">Secure Cloud Login</p>
+                <p className="subtitle">Secure Admin Login</p>
 
                 <form onSubmit={handleLogin} className="feedback-form">
                     <div className="form-group">
@@ -70,7 +60,7 @@ export default function AdminLogin({ cloudUrl }) {
 
                     {status === 'error' && (
                         <div className="status-msg error" style={{ marginBottom: 16 }}>
-                            Login Failed. Check your script URL and credentials.
+                            Login failed. Check admin credentials.
                         </div>
                     )}
 

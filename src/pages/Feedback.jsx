@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
 import { Send, AlertCircle, CheckCircle } from 'lucide-react';
+import { submitFeedback } from '../services/dataService';
 
-export default function FeedbackPage({ cloudUrl }) {
+export default function FeedbackPage() {
     const [formData, setFormData] = useState({ name: '', rating: '5', message: '' });
     const [status, setStatus] = useState('idle'); // idle, submitting, success, error
 
@@ -11,15 +12,7 @@ export default function FeedbackPage({ cloudUrl }) {
         setStatus('submitting');
 
         try {
-            await fetch(cloudUrl, {
-                method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    action: "feedback",
-                    ...formData
-                })
-            });
+            await submitFeedback(formData);
             setStatus('success');
             setFormData({ name: '', rating: '5', message: '' });
         } catch (err) {
@@ -83,7 +76,7 @@ export default function FeedbackPage({ cloudUrl }) {
                     {status === 'success' && (
                         <div className="status-msg success">
                             <CheckCircle size={20} />
-                            <span>Message saved to Cloud! Thank you.</span>
+                            <span>Message saved. Thank you.</span>
                         </div>
                     )}
                     {status === 'error' && (

@@ -2,6 +2,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import Tree from 'react-d3-tree';
 import '../index.css';
+import { compareIdentity } from '../utils/familyData';
 
 // --- ICONS ---
 import { Heart, Users as UsersIcon } from 'lucide-react';
@@ -17,23 +18,26 @@ const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" he
 const FullScreenIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" /></svg>;
 
 const NodeCard = React.memo(({ nodeDatum, toggleNode, orientation }) => {
-    const { name, spouse, status } = nodeDatum;
+    const { name, spouse } = nodeDatum;
     const hasSpouse = spouse && spouse !== "Unknown";
-    const isDeceased = status === 'Deceased';
     const childrenCount = nodeDatum.children ? nodeDatum.children.length : 0;
 
     const xOffset = orientation === 'horizontal' ? -10 : -100;
     const yOffset = orientation === 'horizontal' ? -40 : -40;
 
+    const handleToggle = (event) => {
+        event.stopPropagation();
+        if (childrenCount > 0) {
+            toggleNode();
+        }
+    };
+
     return (
         <foreignObject width="240" height="140" x={xOffset} y={yOffset} className="node-foreign-object">
-            <div className={`node-card ${isDeceased ? 'deceased' : 'alive'}`} onClick={toggleNode}>
+            <div className="node-card" onClick={handleToggle}>
                 <div className="node-wrapper">
                     <div className="node-content">
                         <div className="node-header">
-                            <div className="status-dot-container" title={isDeceased ? 'Deceased' : 'Alive'}>
-                                <div className={`status-dot ${isDeceased ? 'deceased' : 'alive'}`}></div>
-                            </div>
                             <span className="node-name" title={name}>{name}</span>
                         </div>
                         <div className="node-details">
@@ -98,15 +102,20 @@ export default function TreePage({ theme, setTheme, treeData }) {
             const newNode = { ...node };
             if (newNode.children) {
                 newNode.children = [...newNode.children].sort((a, b) =>
-                    (a.branch_id || '').localeCompare(b.branch_id || '', undefined, { numeric: true })
+                    compareIdentity(a.branch_id, b.branch_id)
                 );
                 newNode.children = newNode.children.map(sortRecursive);
             }
             return newNode;
         };
-        // Handle if treeData is array or object
-        if (Array.isArray(treeData)) return treeData.map(sortRecursive);
-        return sortRecursive(treeData);
+        const dataRoot = Array.isArray(treeData)
+            ? treeData
+            : treeData?.branch_id === 'ROOT'
+                ? treeData.children || []
+                : treeData;
+
+        if (Array.isArray(dataRoot)) return dataRoot.map(sortRecursive);
+        return sortRecursive(dataRoot);
     }, [treeData]);
 
     if (!sortedTreeData) return <div className="page-container">No records found.</div>;
@@ -120,6 +129,8 @@ export default function TreePage({ theme, setTheme, treeData }) {
                 renderCustomNodeElement={(rd3tProps) => <NodeCard {...rd3tProps} orientation={orientation} />}
                 orientation={orientation}
                 initialDepth={1}
+                collapsible={true}
+                hasInteractiveNodes={true}
                 pathFunc="step"
                 separation={orientation === 'horizontal' ? { siblings: 1.5, nonSiblings: 2 } : { siblings: 2, nonSiblings: 2.5 }}
                 enableLegacyTransitions={false}
@@ -144,11 +155,11 @@ export default function TreePage({ theme, setTheme, treeData }) {
                         <div className="settings-group">
                             <h3>Theme</h3>
                             <div className="theme-grid">
-                                <div className="theme-btn" style={{ background: '#0f172a' }} onClick={() => setTheme('theme-blue')} />
-                                <div className="theme-btn" style={{ background: '#022c22' }} onClick={() => setTheme('theme-green')} />
-                                <div className="theme-btn" style={{ background: '#4a044e' }} onClick={() => setTheme('theme-purple')} />
-                                <div className="theme-btn" style={{ background: '#2c0410' }} onClick={() => setTheme('theme-crimson')} />
-                                <div className="theme-btn" style={{ background: '#f1f5f9', border: '1px solid #94a3b8' }} onClick={() => setTheme('theme-light')} />
+                                <div className="theme-btn" style={{ background: '#0b1220' }} onClick={() => setTheme('theme-blue')} />
+                                <div className="theme-btn" style={{ background: '#0c1612' }} onClick={() => setTheme('theme-green')} />
+                                <div className="theme-btn" style={{ background: '#f8fafc', border: '1px solid #94a3b8' }} onClick={() => setTheme('theme-purple')} />
+                                <div className="theme-btn" style={{ background: '#faf6ef', border: '1px solid #c6ab87' }} onClick={() => setTheme('theme-crimson')} />
+                                <div className="theme-btn" style={{ background: '#eef2f7', border: '1px solid #94a3b8' }} onClick={() => setTheme('theme-light')} />
                             </div>
                         </div>
                     </div>
