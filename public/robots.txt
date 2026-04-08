@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin
+Disallow: /admin/dashboard
+
+Sitemap: https://family-tree-application.vercel.app/sitemap.xml
