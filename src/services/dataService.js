@@ -1,234 +1,175 @@
-import { Account, Client, Storage } from 'appwrite';
-import { compareIdentity, treeToMemberRows } from '../utils/familyData';
+import { buildTreeFromMemberRows } from '../utils/familyData';
+import { pushToast } from '../utils/toastBus';
 
-const LOCAL_TREE_KEY = 'family-tree:data:v1';
-const LOCAL_FEEDBACK_KEY = 'family-tree:feedback:v1';
+const centralApiBaseUrl = import.meta.env.VITE_CENTRAL_API_BASE_URL || '';
 
-const defaultAdminUsername = import.meta.env.VITE_ADMIN_DEFAULT_USERNAME || 'admin';
-const defaultAdminPassword = import.meta.env.VITE_ADMIN_DEFAULT_PASSWORD || '123';
-const centralSourceMode = String(import.meta.env.VITE_CENTRAL_SOURCE_MODE || 'off').toLowerCase();
-const appwriteEndpoint = import.meta.env.VITE_APPWRITE_ENDPOINT;
-const appwriteProjectId = import.meta.env.VITE_APPWRITE_PROJECT_ID;
-const appwriteBucketId = import.meta.env.VITE_APPWRITE_BUCKET_ID;
-const appwriteCsvFileId = import.meta.env.VITE_APPWRITE_CSV_FILE_ID;
-const centralMinRows = Number.parseInt(import.meta.env.VITE_CENTRAL_MIN_ROWS || '50', 10);
-
-const appwriteClient = new Client();
-const appwriteReady = Boolean(appwriteEndpoint && appwriteProjectId);
-
-if (appwriteReady) {
-  appwriteClient.setEndpoint(appwriteEndpoint).setProject(appwriteProjectId);
+function buildApiUrl(path) {
+  const base = centralApiBaseUrl.trim();
+  if (!base) return path;
+  return `${base.replace(/\/$/, '')}${path}`;
 }
 
-const appwriteAccount = new Account(appwriteClient);
-const appwriteStorage = new Storage(appwriteClient);
-
-let sessionReady = false;
-
-function canUseLocalStorage() {
-  return typeof window !== 'undefined' && Boolean(window.localStorage);
-}
-
-function loadLocalJson(key, fallback = null) {
-  if (!canUseLocalStorage()) return fallback;
-  const raw = window.localStorage.getItem(key);
-  if (!raw) return fallback;
-
+async function parseErrorResponse(res, fallbackMessage) {
   try {
-    return JSON.parse(raw);
+    const payload = await res.json();
+    if (payload?.error) return payload.error;
   } catch {
-    return fallback;
+    // Ignore parse failures.
   }
+  return `${fallbackMessage} (${res.status})`;
 }
 
-function saveLocalJson(key, value) {
-  if (!canUseLocalStorage()) return;
-  window.localStorage.setItem(key, JSON.stringify(value));
-}
+async function parseJsonPayload(res, fallbackMessage) {
+  const contentType = String(res.headers.get('content-type') || '').toLowerCase();
 
-function shouldUseCentralCsvWrite() {
-  return (
-    centralSourceMode === 'appwrite' &&
-    appwriteReady &&
-    Boolean(appwriteBucketId) &&
-    Boolean(appwriteCsvFileId)
-  );
-}
+  if (!contentType.includes('application/json')) {
+    let preview = '';
+    try {
+      preview = (await res.text()).slice(0, 80);
+    } catch {
+      // Ignore body read failures for preview.
+    }
 
-async function ensureAnonymousSession() {
-  if (sessionReady || !appwriteReady) return;
-
-  try {
-    await appwriteAccount.get();
-    sessionReady = true;
-    return;
-  } catch {
-    // No active session, create anonymous if allowed.
-  }
-
-  try {
-    await appwriteAccount.createAnonymousSession();
-  } catch {
-    // Anonymous may be disabled; public bucket permissions can still allow access.
-  }
-
-  sessionReady = true;
-}
-
-function toCsvCell(value) {
-  const text = String(value ?? '');
-  const escaped = text.replace(/"/g, '""');
-  return `"${escaped}"`;
-}
-
-function isValidIdentity(value) {
-  const identity = String(value || '').trim();
-  if (!identity) return false;
-  if (identity.toLowerCase() === 'infinity') return false;
-  return /^\d+(\.\d+)*$/.test(identity);
-}
-
-function formatStorageError(error, fallbackMessage) {
-  const msg = String(error?.message || '');
-  const isCorsLike = msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('networkerror');
-
-  if (isCorsLike) {
-    return `${fallbackMessage} (likely CORS/Platform issue in Appwrite project settings).`;
-  }
-
-  return `${fallbackMessage}: ${msg || 'Unknown error'}`;
-}
-
-function treeToCsvText(treeData) {
-  const rows = treeToMemberRows(treeData)
-    .filter((row) => isValidIdentity(row.identityNum))
-    .sort((a, b) => compareIdentity(a.identityNum, b.identityNum));
-
-  if (rows.length < Math.max(1, centralMinRows)) {
+    const normalizedPreview = preview.replace(/\s+/g, ' ').trim();
     throw new Error(
-      `Central sync blocked: only ${rows.length} valid row(s) generated. Minimum required is ${centralMinRows}. Use Restore Data from CSV first.`
+      `${fallbackMessage}. API returned non-JSON content (${contentType || 'unknown'}). ` +
+      `This usually means /api is not running in local dev. Start backend with "vercel dev" ` +
+      `or set VITE_CENTRAL_API_BASE_URL to your deployed domain. Preview: ${normalizedPreview || 'empty response'}`
     );
   }
 
-  const lines = [
-    ['Identity Num', 'Name', 'Spouse'],
-    ...rows.map((row) => [row.identityNum || '', row.name || '', row.spouse || ''])
-  ];
-
-  return lines.map((line) => line.map(toCsvCell).join(',')).join('\n');
-}
-
-async function uploadTreeCsvToCentral(treeData) {
-  if (!shouldUseCentralCsvWrite()) return;
-
-  await ensureAnonymousSession();
-
-  const csvText = treeToCsvText(treeData);
-  const csvFile = new File([csvText], 'family_tree_data.csv', { type: 'text/csv' });
-
-  // Check existence first to avoid expected 409 conflict noise in browser console.
-  let fileExists = false;
   try {
-    await appwriteStorage.getFile(appwriteBucketId, appwriteCsvFileId);
-    fileExists = true;
-  } catch (error) {
-    const code = Number(error?.code || 0);
-    if (code !== 404) {
-      throw new Error(formatStorageError(error, 'Central file check failed'));
+    return await res.json();
+  } catch {
+    throw new Error(`${fallbackMessage}. Response body is not valid JSON.`);
+  }
+}
+
+async function apiRequest(path, options = {}) {
+  const method = String(options.method || 'GET').toUpperCase();
+  const requestName = options.toastLabel || `${method} ${path}`;
+
+  const res = await fetch(buildApiUrl(path), {
+    credentials: 'include',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
     }
-  }
-
-  if (fileExists) {
-    try {
-      await appwriteStorage.deleteFile(appwriteBucketId, appwriteCsvFileId);
-    } catch (error) {
-      throw new Error(formatStorageError(error, 'Central replace delete failed'));
-    }
-  }
-
-  try {
-    await appwriteStorage.createFile(appwriteBucketId, appwriteCsvFileId, csvFile);
-  } catch (error) {
-    throw new Error(formatStorageError(error, 'Central upload failed'));
-  }
-}
-
-export async function loadTreeData() {
-  return loadLocalJson(LOCAL_TREE_KEY, null);
-}
-
-export async function saveTreeDataLocalOnly(treeData) {
-  saveLocalJson(LOCAL_TREE_KEY, treeData);
-}
-
-export async function saveTreeData(treeData) {
-  await saveTreeDataLocalOnly(treeData);
-
-  if (shouldUseCentralCsvWrite()) {
-    await uploadTreeCsvToCentral(treeData);
-  }
-}
-
-export async function submitFeedback(feedback) {
-  const existing = loadLocalJson(LOCAL_FEEDBACK_KEY, []);
-  existing.push({
-    ...feedback,
-    createdAt: new Date().toISOString()
   });
-  saveLocalJson(LOCAL_FEEDBACK_KEY, existing);
+
+  if (res.ok) {
+    pushToast(`${requestName} succeeded`, 'success');
+  } else {
+    const message = await parseErrorResponse(res.clone(), `${requestName} failed`);
+    pushToast(message, 'error', 3400);
+  }
+
+  return res;
 }
 
-export async function loadFeedbackEntries() {
-  const entries = loadLocalJson(LOCAL_FEEDBACK_KEY, []);
-  if (!Array.isArray(entries)) return [];
+export async function fetchFamilyRows() {
+  const res = await apiRequest('/api/family-data', { method: 'GET' });
+  if (!res.ok) {
+    throw new Error(await parseErrorResponse(res, 'Family data fetch failed'));
+  }
 
-  return entries
-    .filter((entry) => entry && typeof entry === 'object')
-    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  const payload = await parseJsonPayload(res, 'Family data fetch failed');
+  return Array.isArray(payload?.rows) ? payload.rows : [];
 }
 
-export async function clearFeedbackEntries() {
-  saveLocalJson(LOCAL_FEEDBACK_KEY, []);
+export async function fetchFamilyTree() {
+  const rows = await fetchFamilyRows();
+  return buildTreeFromMemberRows(rows);
+}
+
+export async function createFamilyMember(member) {
+  const res = await apiRequest('/api/family-data', {
+    method: 'POST',
+    body: JSON.stringify(member)
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorResponse(res, 'Create member failed'));
+  }
+}
+
+export async function updateFamilyMember(payload) {
+  const res = await apiRequest('/api/family-data', {
+    method: 'PATCH',
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorResponse(res, 'Update member failed'));
+  }
+}
+
+export async function deleteFamilyMember(identityNum) {
+  const query = new URLSearchParams({ identityNum: String(identityNum || '') });
+  const res = await apiRequest(`/api/family-data?${query.toString()}`, {
+    method: 'DELETE'
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorResponse(res, 'Delete member failed'));
+  }
 }
 
 export async function loginAdmin(username, password) {
-  if (username === defaultAdminUsername && password === defaultAdminPassword) {
-    return {
-      token: `admin-local-${Date.now()}`,
-      adminId: 'local-default'
-    };
+  const res = await apiRequest('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password })
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorResponse(res, 'Login failed'));
   }
 
-  return null;
+  return parseJsonPayload(res, 'Login failed');
 }
 
-export async function runStorageSetupChecks(treeData) {
-  const storageAvailable = canUseLocalStorage();
-  const current = loadLocalJson(LOCAL_TREE_KEY, null);
-  const hasStoredTree = Boolean(current && (current.children?.length || current.branch_id));
+export async function verifyAdminSession() {
+  const res = await apiRequest('/api/auth/verify', { method: 'GET' });
+  return res.ok;
+}
 
-  const checks = [
-    { key: 'Data mode', ok: true, message: 'Running in local storage mode' },
-    { key: 'Local storage', ok: storageAvailable, message: storageAvailable ? 'Accessible' : 'Not available in this environment' },
-    { key: 'Tree data', ok: hasStoredTree, message: hasStoredTree ? 'Saved data found on this device' : 'No saved tree yet on this device' }
-  ];
+export async function logoutAdmin() {
+  await apiRequest('/api/auth/logout', { method: 'POST' });
+}
 
-  if (centralSourceMode === 'appwrite') {
-    checks.push({ key: 'Central source mode', ok: true, message: 'Appwrite bucket mode enabled' });
-    checks.push({ key: 'Appwrite endpoint', ok: Boolean(appwriteEndpoint), message: appwriteEndpoint ? 'Configured' : 'Missing' });
-    checks.push({ key: 'Appwrite project', ok: Boolean(appwriteProjectId), message: appwriteProjectId ? 'Configured' : 'Missing' });
-    checks.push({ key: 'Appwrite bucket', ok: Boolean(appwriteBucketId), message: appwriteBucketId ? 'Configured' : 'Missing' });
-    checks.push({ key: 'Appwrite CSV file ID', ok: Boolean(appwriteCsvFileId), message: appwriteCsvFileId ? 'Configured' : 'Missing' });
+export async function submitFeedback(feedback) {
+  const res = await apiRequest('/api/feedback', {
+    method: 'POST',
+    body: JSON.stringify(feedback)
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorResponse(res, 'Feedback submit failed'));
+  }
+}
+
+export async function loadFeedbackEntries(filters = {}) {
+  const query = new URLSearchParams();
+  if (filters.search) query.set('search', filters.search);
+  if (filters.fromDate) query.set('fromDate', filters.fromDate);
+  if (filters.toDate) query.set('toDate', filters.toDate);
+
+  const suffix = query.toString() ? `?${query.toString()}` : '';
+  const res = await apiRequest(`/api/feedback${suffix}`, { method: 'GET' });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorResponse(res, 'Feedback load failed'));
   }
 
-  if (treeData) {
-    try {
-      await saveTreeData(treeData);
-      checks.push({ key: 'Write test', ok: true, message: shouldUseCentralCsvWrite() ? 'Local + central save succeeded' : 'Local save succeeded' });
-    } catch (error) {
-      checks.push({ key: 'Write test', ok: false, message: error?.message || 'Save failed' });
-    }
-  }
+  const payload = await parseJsonPayload(res, 'Feedback load failed');
+  return Array.isArray(payload?.entries) ? payload.entries : [];
+}
 
-  return checks;
+export async function clearFeedbackEntries() {
+  const res = await apiRequest('/api/feedback', { method: 'DELETE' });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorResponse(res, 'Feedback clear failed'));
+  }
 }

@@ -61,7 +61,7 @@ const NodeCard = React.memo(({ nodeDatum, toggleNode, orientation }) => {
     );
 });
 
-export default function TreePage({ theme, setTheme, treeData }) {
+export default function TreePage({ setTheme, treeData }) {
     const [zoom, setZoom] = useState(1);
     const [translate, setTranslate] = useState({ x: 0, y: 0 });
     const [orientation, setOrientation] = useState('vertical');
@@ -118,7 +118,9 @@ export default function TreePage({ theme, setTheme, treeData }) {
         return sortRecursive(dataRoot);
     }, [treeData]);
 
-    if (!sortedTreeData) return <div className="page-container">No records found.</div>;
+    if (!sortedTreeData || (Array.isArray(sortedTreeData) && sortedTreeData.length === 0)) {
+        return <div className="page-container">No records found.</div>;
+    }
 
     return (
         <div className="tree-container" ref={treeContainerRef}>

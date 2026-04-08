@@ -1,22 +1,22 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Save, UserPlus, Trash2, Edit2, LogOut, Settings,
-    UploadCloud, Search, Users, Download, RefreshCcw,
+    Search, Users, Download, RefreshCcw,
     ChevronRight, Home
 } from 'lucide-react';
 import './Admin.css';
-import bundledFamilyCsvUrl from '../assets/FAMILY-LATEST.csv?url';
-import { compareIdentity, getNextChildIdentity, parseFamilyCsvToTree } from '../utils/familyData';
+import { compareIdentity, getNextChildIdentity } from '../utils/familyData';
 import {
-    runStorageSetupChecks,
-    saveTreeData,
+    verifyAdminSession,
+    logoutAdmin,
+    fetchFamilyTree,
+    updateFamilyMember,
+    createFamilyMember,
+    deleteFamilyMember,
     loadFeedbackEntries,
     clearFeedbackEntries
 } from '../services/dataService';
-
-const rebuildPaceMs = Number.parseInt(import.meta.env.VITE_REBUILD_PACE_MS || '0', 10);
 
 export default function AdminDashboard({ treeData, setTreeData }) {
     const [selectedNode, setSelectedNode] = useState(null);
@@ -24,47 +24,52 @@ export default function AdminDashboard({ treeData, setTreeData }) {
     const [statusMsg, setStatusMsg] = useState('');
     const [statusTone, setStatusTone] = useState('success');
     const [search, setSearch] = useState('');
-    const [view, setView] = useState('table'); // 'table' or 'settings'
+    const [view, setView] = useState('table');
     const [isSyncing, setIsSyncing] = useState(false);
-    const [viewPath, setViewPath] = useState([]); // Array of { key, name }
-    const [setupChecks, setSetupChecks] = useState([]);
-    const [isCheckingSetup, setIsCheckingSetup] = useState(false);
+    const [viewPath, setViewPath] = useState([]);
     const [feedbackEntries, setFeedbackEntries] = useState([]);
     const [isLoadingFeedback, setIsLoadingFeedback] = useState(false);
     const [feedbackSearch, setFeedbackSearch] = useState('');
     const [feedbackFromDate, setFeedbackFromDate] = useState('');
     const [feedbackToDate, setFeedbackToDate] = useState('');
-    const [showAdvancedTools, setShowAdvancedTools] = useState(false);
-    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
     const navigate = useNavigate();
 
-    // Protect Route
     useEffect(() => {
-        const token = localStorage.getItem('admin_token');
-        if (!token) navigate('/admin');
-    }, []);
+        let cancelled = false;
 
-    // UTILITY: Flatten the hierarchical tree for the table
+        const checkSession = async () => {
+            const ok = await verifyAdminSession();
+            if (!ok && !cancelled) {
+                navigate('/admin');
+            }
+        };
+
+        checkSession();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [navigate]);
+
     const flattenedList = useMemo(() => {
         if (!treeData) return [];
         const members = [];
-        const recurse = (node, parentName = "Root") => {
+        const recurse = (node, parentName = 'Root') => {
             members.push({ ...node, parentName });
             if (node.children) {
-                node.children.forEach(child => recurse(child, node.name));
+                node.children.forEach((child) => recurse(child, node.name));
             }
         };
         recurse(treeData);
         return members;
     }, [treeData]);
 
-    // List for display based on navigation or search
     const displayList = useMemo(() => {
         if (!treeData) return [];
 
         if (search) {
-            return flattenedList.filter(m =>
+            return flattenedList.filter((m) =>
                 m.name.toLowerCase().includes(search.toLowerCase()) ||
                 (m.spouse && m.spouse.toLowerCase().includes(search.toLowerCase()))
             );
@@ -81,7 +86,7 @@ export default function AdminDashboard({ treeData, setTreeData }) {
 
                 return rootChildren.slice(0, 1);
             }
-            return [{ ...treeData, parentName: "Source" }];
+            return [{ ...treeData, parentName: 'Source' }];
         }
 
         const currentKey = viewPath[viewPath.length - 1].key;
@@ -89,7 +94,7 @@ export default function AdminDashboard({ treeData, setTreeData }) {
         const findNode = (root, key) => {
             if (root._key === key) return root;
             if (root.children) {
-                for (let child of root.children) {
+                for (const child of root.children) {
                     const found = findNode(child, key);
                     if (found) return found;
                 }
@@ -121,28 +126,38 @@ export default function AdminDashboard({ treeData, setTreeData }) {
 
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-    const handleSetupCheck = async () => {
-        try {
-            setIsCheckingSetup(true);
-            const results = await runStorageSetupChecks(treeData);
-            setSetupChecks(results);
-        } finally {
-            setIsCheckingSetup(false);
+    const setTransientStatus = (tone, msg, timeout = 2800) => {
+        setStatusTone(tone);
+        setStatusMsg(msg);
+        if (timeout > 0) {
+            setTimeout(() => setStatusMsg(''), timeout);
         }
     };
 
     const refreshFeedbackEntries = async () => {
         try {
             setIsLoadingFeedback(true);
-            const entries = await loadFeedbackEntries();
+            const entries = await loadFeedbackEntries({
+                search: feedbackSearch,
+                fromDate: feedbackFromDate,
+                toDate: feedbackToDate
+            });
             setFeedbackEntries(entries);
+        } catch (error) {
+            setTransientStatus('error', error?.message || 'Feedback refresh failed', 4200);
         } finally {
             setIsLoadingFeedback(false);
         }
     };
 
+    useEffect(() => {
+        if (view === 'settings') {
+            refreshFeedbackEntries();
+        }
+    }, [view, feedbackSearch, feedbackFromDate, feedbackToDate]);
+
     const handleExportFeedbackCsv = () => {
-        if (!filteredFeedbackEntries.length) {
+        if (!feedbackEntries.length) {
             alert('No feedback found to export.');
             return;
         }
@@ -155,7 +170,7 @@ export default function AdminDashboard({ treeData, setTreeData }) {
 
         const rows = [
             ['Created At', 'Name', 'Rating', 'Message'],
-            ...filteredFeedbackEntries.map((entry) => [
+            ...feedbackEntries.map((entry) => [
                 entry.createdAt || '',
                 entry.name || '',
                 entry.rating || '',
@@ -179,174 +194,114 @@ export default function AdminDashboard({ treeData, setTreeData }) {
     };
 
     const handleClearFeedback = async () => {
-        const confirmed = window.confirm('Delete all saved feedback on this device?');
+        const confirmed = window.confirm('Delete all feedback entries from MongoDB?');
         if (!confirmed) return;
 
-        await clearFeedbackEntries();
-        setFeedbackEntries([]);
-        setStatusMsg('Feedback cleared!');
-        setTimeout(() => setStatusMsg(''), 2500);
-    };
-
-    const handleHardRebuild = async () => {
         try {
             setIsSyncing(true);
-            setStatusTone('info');
-            setStatusMsg('Restoring from CSV...');
-
-            const res = await fetch(bundledFamilyCsvUrl);
-            const csv = await res.text();
-            const canonicalTree = parseFamilyCsvToTree(csv);
-
-            if (rebuildPaceMs > 0) {
-                await new Promise((resolve) => setTimeout(resolve, rebuildPaceMs));
-            }
-
-            await saveTreeData(canonicalTree);
-            setTreeData(canonicalTree);
-            setStatusTone('success');
-            setStatusMsg('Tree restored and central CSV synced!');
-            setTimeout(() => setStatusMsg(''), 3500);
+            await clearFeedbackEntries();
+            await refreshFeedbackEntries();
+            setTransientStatus('success', 'Feedback cleared!');
         } catch (error) {
-            console.error('Restore failed:', error);
-            setStatusTone('error');
-            setStatusMsg(error?.message || 'Restore failed');
-            alert('Restore failed. Please try again.');
-            setTimeout(() => setStatusMsg(''), 4500);
+            setTransientStatus('error', error?.message || 'Failed to clear feedback', 4200);
         } finally {
             setIsSyncing(false);
         }
     };
 
-    const saveToStorage = async (newData) => {
+    const reloadTree = async () => {
+        const freshTree = await fetchFamilyTree();
+        setTreeData(freshTree);
+    };
+
+    const handleSaveNode = async () => {
         try {
             setIsSyncing(true);
-            await saveTreeData(newData);
-            setHasUnsavedChanges(false);
-            setStatusTone('success');
-            setStatusMsg("Saved and central CSV synced!");
-            setTimeout(() => setStatusMsg(''), 3000);
-        } catch (err) {
-            setStatusTone('error');
-            setStatusMsg(err?.message || 'Save failed');
-            setTimeout(() => setStatusMsg(''), 4500);
-            alert("Save Failed");
+            await updateFamilyMember({
+                originalIdentityNum: selectedNode.branch_id,
+                identityNum: formData.branch_id,
+                name: formData.name,
+                spouse: formData.spouse
+            });
+            await reloadTree();
+            setSelectedNode(null);
+            setTransientStatus('success', 'Member updated in MongoDB');
+        } catch (error) {
+            setTransientStatus('error', error?.message || 'Member update failed', 4200);
         } finally {
             setIsSyncing(false);
         }
     };
 
-    const markUnsavedChanges = () => {
-        setHasUnsavedChanges(true);
-        setStatusTone('info');
-        setStatusMsg('Unsaved changes. Go to Data Sync and click Save Now.');
-    };
-
-    // RECURSIVE UPDATE HELPER
-    const updateNodeInTree = (root, targetKey, updateFn) => {
-        if (root._key === targetKey) return updateFn(root);
-        if (root.children) {
-            root.children = root.children.map(child => updateNodeInTree(child, targetKey, updateFn)).filter(c => c !== null);
-        }
-        return root;
-    };
-
-    const handleSaveNode = () => {
-        const newTree = updateNodeInTree({ ...treeData }, selectedNode._key, (node) => ({ ...node, ...formData }));
-        setTreeData(newTree);
-        markUnsavedChanges();
-        setSelectedNode(null);
-    };
-
-    const handleAddChild = (parent) => {
+    const handleAddChild = async (parent) => {
         const childId = getNextChildIdentity(parent.branch_id, parent.children || []);
         if (!childId) {
             alert('Please add children only under a valid identity number.');
             return;
         }
 
-        const newChild = {
-            _key: `${childId}__${Date.now()}`,
-            branch_id: childId,
-            name: "New Family Member",
-            spouse: '',
-            children: []
-        };
-        const newTree = updateNodeInTree({ ...treeData }, parent._key, (node) => {
-            if (!node.children) node.children = [];
-            node.children.push(newChild);
-            return node;
-        });
-        setTreeData(newTree);
-        markUnsavedChanges();
-        // Immediately edit the new child
-        setSelectedNode(newChild);
-        setFormData(newChild);
-    };
-
-    const handleDeleteNode = (memberKey) => {
-        if (window.confirm("Are you sure you want to delete this person? This will also remove all their children.")) {
-            if (treeData._key === memberKey) return alert("Cannot delete Root!");
-
-            const deleteRecursive = (node, targetKey) => {
-                if (node._key === targetKey) return null;
-                if (node.children) node.children = node.children.map(c => deleteRecursive(c, targetKey)).filter(c => c !== null);
-                return node;
-            };
-            const resultTree = deleteRecursive({ ...treeData }, memberKey);
-            setTreeData(resultTree);
-            markUnsavedChanges();
+        try {
+            setIsSyncing(true);
+            await createFamilyMember({
+                identityNum: childId,
+                name: 'New Family Member',
+                spouse: ''
+            });
+            await reloadTree();
+            setTransientStatus('success', `Added child ${childId}`);
+        } catch (error) {
+            setTransientStatus('error', error?.message || 'Add child failed', 4200);
+        } finally {
+            setIsSyncing(false);
         }
     };
 
-    const filteredFeedbackEntries = useMemo(() => {
-        const term = feedbackSearch.trim().toLowerCase();
-        const fromMs = feedbackFromDate ? new Date(`${feedbackFromDate}T00:00:00`).getTime() : null;
-        const toMs = feedbackToDate ? new Date(`${feedbackToDate}T23:59:59`).getTime() : null;
-
-        return feedbackEntries.filter((entry) => {
-            const name = String(entry?.name || '').toLowerCase();
-            const message = String(entry?.message || '').toLowerCase();
-            const rating = String(entry?.rating || '').toLowerCase();
-
-            const matchesText = !term || name.includes(term) || message.includes(term) || rating.includes(term);
-
-            const createdAtMs = entry?.createdAt ? new Date(entry.createdAt).getTime() : null;
-            const validDate = Number.isFinite(createdAtMs);
-            const matchesFrom = fromMs === null || (validDate && createdAtMs >= fromMs);
-            const matchesTo = toMs === null || (validDate && createdAtMs <= toMs);
-
-            return matchesText && matchesFrom && matchesTo;
-        });
-    }, [feedbackEntries, feedbackSearch, feedbackFromDate, feedbackToDate]);
-
-    useEffect(() => {
-        if (view === 'settings') {
-            refreshFeedbackEntries();
+    const handleDeleteNode = async (member) => {
+        if (String(member?.branch_id || '').trim() === '00.00.00') {
+            alert('Cannot delete the root anchor member.');
+            return;
         }
-    }, [view]);
+
+        if (!window.confirm('Are you sure you want to delete this person?')) {
+            return;
+        }
+
+        try {
+            setIsSyncing(true);
+            await deleteFamilyMember(member.branch_id);
+            await reloadTree();
+            setTransientStatus('success', `Deleted ${member.branch_id}`);
+        } catch (error) {
+            setTransientStatus('error', error?.message || 'Delete failed', 4200);
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+    const handleLogout = async () => {
+        await logoutAdmin();
+        navigate('/');
+    };
 
     if (!treeData) return <div className="loading">Loading Family Data...</div>;
 
     return (
         <div className="admin-dashboard">
-            {/* SIDEBAR */}
             <div className="admin-sidebar">
                 <div className="admin-header"><h3>Family Admin</h3></div>
                 <button className={`sidebar-btn ${view === 'table' ? 'active' : ''}`} onClick={() => setView('table')}>
                     <Users size={18} /> All Members
                 </button>
                 <button className={`sidebar-btn ${view === 'settings' ? 'active' : ''}`} onClick={() => setView('settings')}>
-                    <Settings size={18} /> Data Sync
+                    <Settings size={18} /> Admin Tools
                 </button>
                 <div style={{ marginTop: 'auto' }}>
-                    <button className="sidebar-btn logout" onClick={() => { localStorage.removeItem('admin_token'); navigate('/'); }}>
+                    <button className="sidebar-btn logout" onClick={handleLogout}>
                         <LogOut size={18} /> Exit Admin
                     </button>
                 </div>
             </div>
 
-            {/* WORKSPACE */}
             <div className="admin-workspace">
                 <div className="admin-top-bar">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -355,23 +310,17 @@ export default function AdminDashboard({ treeData, setTreeData }) {
                             className="search-input"
                             placeholder="Search by name or spouse..."
                             value={search}
-                            onChange={e => setSearch(e.target.value)}
+                            onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
                     <div>
-                        {isSyncing && <span style={{ fontSize: '0.8rem', color: 'var(--accent)', fontWeight: 700 }}>Saving...</span>}
+                        {isSyncing && <span style={{ fontSize: '0.8rem', color: 'var(--accent)', fontWeight: 700 }}>Syncing...</span>}
                         {statusMsg && <span style={{ fontSize: '0.8rem', color: statusTone === 'error' ? 'var(--status-deceased)' : statusTone === 'info' ? 'var(--accent)' : 'var(--status-alive)', fontWeight: 700 }}>{statusMsg}</span>}
-                        {!isSyncing && !statusMsg && hasUnsavedChanges && (
-                            <span style={{ fontSize: '0.8rem', color: 'var(--accent)', fontWeight: 700 }}>
-                                Unsaved changes. Save from Data Sync.
-                            </span>
-                        )}
                     </div>
                 </div>
 
                 {view === 'table' && (
                     <div className="table-container">
-                        {/* Breadcrumbs */}
                         {!search && (
                             <div className="admin-breadcrumbs">
                                 <span
@@ -404,7 +353,7 @@ export default function AdminDashboard({ treeData, setTreeData }) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {displayList.map(member => (
+                                {displayList.map((member) => (
                                     <tr key={member._key || member.branch_id}>
                                         <td style={{ fontWeight: 600, color: 'var(--accent)' }}>{member.branch_id}</td>
                                         <td style={{ fontWeight: 600 }}>{member.name}</td>
@@ -420,7 +369,7 @@ export default function AdminDashboard({ treeData, setTreeData }) {
                                                 <button className="sidebar-btn" style={{ padding: '6px', color: 'var(--status-alive)' }} title="Add Child" onClick={() => handleAddChild(member)}>
                                                     <UserPlus size={16} />
                                                 </button>
-                                                <button className="sidebar-btn" style={{ padding: '6px', color: 'var(--status-deceased)' }} title="Delete" onClick={() => handleDeleteNode(member._key)}>
+                                                <button className="sidebar-btn" style={{ padding: '6px', color: 'var(--status-deceased)' }} title="Delete" onClick={() => handleDeleteNode(member)}>
                                                     <Trash2 size={16} />
                                                 </button>
                                             </div>
@@ -435,112 +384,80 @@ export default function AdminDashboard({ treeData, setTreeData }) {
                 {view === 'settings' && (
                     <div className="table-container">
                         <div className="data-sync-panel">
-                            <h2>Data Synchronization</h2>
+                            <h2>MongoDB Sync Status</h2>
                             <p className="data-sync-subtitle">
-                                Save your latest tree changes on this device and restore from bundled CSV when needed.
+                                This dashboard now reads and writes directly to MongoDB Atlas for every operation.
                             </p>
                             <div className="sync-actions">
-                                <button className="btn-primary" onClick={() => saveToStorage(treeData)} disabled={isSyncing || isCheckingSetup}>
-                                    <UploadCloud size={18} /> Save Now
-                                </button>
-                                <button className="btn-cancel" onClick={() => setShowAdvancedTools((prev) => !prev)}>
-                                    {showAdvancedTools ? 'Hide Advanced Tools' : 'Show Advanced Tools'}
+                                <button className="btn-cancel" onClick={reloadTree} disabled={isSyncing || isLoadingFeedback}>
+                                    <RefreshCcw size={16} /> Refresh Family Data
                                 </button>
                             </div>
 
-                            {showAdvancedTools && (
-                                <>
-                                    <div className="advanced-actions">
-                                        <button className="btn-cancel" onClick={handleSetupCheck} disabled={isCheckingSetup || isSyncing}>
-                                            {isCheckingSetup ? 'Checking Storage...' : 'Run Storage Check'}
-                                        </button>
-                                        <button className="btn-cancel" onClick={handleHardRebuild} disabled={isSyncing || isCheckingSetup}>
-                                            {isSyncing ? 'Restoring...' : 'Restore Data from CSV'}
-                                        </button>
-                                    </div>
+                            <div className="feedback-section">
+                                <h3 className="feedback-title">Feedback Inbox</h3>
+                                <div className="feedback-toolbar">
+                                    <button className="btn-cancel" onClick={refreshFeedbackEntries} disabled={isLoadingFeedback || isSyncing}>
+                                        <RefreshCcw size={16} /> {isLoadingFeedback ? 'Refreshing...' : 'Refresh'}
+                                    </button>
+                                    <button className="btn-cancel" onClick={handleExportFeedbackCsv} disabled={!feedbackEntries.length}>
+                                        <Download size={16} /> Export CSV
+                                    </button>
+                                    <button className="btn-cancel" onClick={handleClearFeedback} disabled={!feedbackEntries.length || isSyncing}>
+                                        <Trash2 size={16} /> Clear Feedback
+                                    </button>
+                                </div>
 
-                                    {setupChecks.length > 0 && (
-                                        <div className="setup-checks">
-                                            {setupChecks.map((item) => (
-                                                <div key={item.key} className="setup-check-row">
-                                                    <span className="setup-check-key">{item.key}</span>
-                                                    <span className={`setup-check-msg ${item.ok ? 'ok' : 'error'}`}>
-                                                        {item.ok ? 'OK' : 'Issue'}: {item.message}
-                                                    </span>
+                                <div className="feedback-filters">
+                                    <input
+                                        className="search-input"
+                                        placeholder="Search name, message, or rating"
+                                        value={feedbackSearch}
+                                        onChange={(e) => setFeedbackSearch(e.target.value)}
+                                    />
+                                    <input
+                                        type="date"
+                                        className="search-input"
+                                        value={feedbackFromDate}
+                                        onChange={(e) => setFeedbackFromDate(e.target.value)}
+                                    />
+                                    <input
+                                        type="date"
+                                        className="search-input"
+                                        value={feedbackToDate}
+                                        onChange={(e) => setFeedbackToDate(e.target.value)}
+                                    />
+                                </div>
+
+                                {feedbackEntries.length === 0 ? (
+                                    <p style={{ color: 'var(--text-sub)', margin: 0 }}>
+                                        No feedback entries found for current filters.
+                                    </p>
+                                ) : (
+                                    <div className="feedback-list">
+                                        {feedbackEntries.map((entry, idx) => (
+                                            <div
+                                                key={`${entry.createdAt || 'entry'}-${idx}`}
+                                                className={`feedback-item ${idx === feedbackEntries.length - 1 ? 'last' : ''}`}
+                                            >
+                                                <div className="feedback-item-head">
+                                                    <strong>{entry.name || 'Anonymous'}</strong>
+                                                    <span className="feedback-item-time">{entry.createdAt ? new Date(entry.createdAt).toLocaleString() : 'Unknown time'}</span>
                                                 </div>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    <div className="feedback-section">
-                                        <h3 className="feedback-title">Feedback Inbox</h3>
-                                        <div className="feedback-toolbar">
-                                            <button className="btn-cancel" onClick={refreshFeedbackEntries} disabled={isLoadingFeedback || isSyncing}>
-                                                <RefreshCcw size={16} /> {isLoadingFeedback ? 'Refreshing...' : 'Refresh'}
-                                            </button>
-                                            <button className="btn-cancel" onClick={handleExportFeedbackCsv} disabled={!filteredFeedbackEntries.length}>
-                                                <Download size={16} /> Export CSV
-                                            </button>
-                                            <button className="btn-cancel" onClick={handleClearFeedback} disabled={!feedbackEntries.length}>
-                                                <Trash2 size={16} /> Clear Feedback
-                                            </button>
-                                        </div>
-
-                                        <div className="feedback-filters">
-                                            <input
-                                                className="search-input"
-                                                placeholder="Search name, message, or rating"
-                                                value={feedbackSearch}
-                                                onChange={(e) => setFeedbackSearch(e.target.value)}
-                                            />
-                                            <input
-                                                type="date"
-                                                className="search-input"
-                                                value={feedbackFromDate}
-                                                onChange={(e) => setFeedbackFromDate(e.target.value)}
-                                            />
-                                            <input
-                                                type="date"
-                                                className="search-input"
-                                                value={feedbackToDate}
-                                                onChange={(e) => setFeedbackToDate(e.target.value)}
-                                            />
-                                        </div>
-
-                                        {filteredFeedbackEntries.length === 0 ? (
-                                            <p style={{ color: 'var(--text-sub)', margin: 0 }}>
-                                                {feedbackEntries.length === 0
-                                                    ? 'No feedback has been submitted yet.'
-                                                    : 'No feedback matches the current filters.'}
-                                            </p>
-                                        ) : (
-                                            <div className="feedback-list">
-                                                {filteredFeedbackEntries.map((entry, idx) => (
-                                                    <div
-                                                        key={`${entry.createdAt || 'entry'}-${idx}`}
-                                                        className={`feedback-item ${idx === filteredFeedbackEntries.length - 1 ? 'last' : ''}`}
-                                                    >
-                                                        <div className="feedback-item-head">
-                                                            <strong>{entry.name || 'Anonymous'}</strong>
-                                                            <span className="feedback-item-time">{entry.createdAt ? new Date(entry.createdAt).toLocaleString() : 'Unknown time'}</span>
-                                                        </div>
-                                                        <div className="feedback-item-rating">
-                                                            Rating: {entry.rating || '-'}
-                                                        </div>
-                                                        <div className="feedback-item-message">{entry.message || ''}</div>
-                                                    </div>
-                                                ))}
+                                                <div className="feedback-item-rating">
+                                                    Rating: {entry.rating || '-'}
+                                                </div>
+                                                <div className="feedback-item-message">{entry.message || ''}</div>
                                             </div>
-                                        )}
+                                        ))}
                                     </div>
-                                </>
-                            )}
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
             </div>
 
-            {/* EDIT MODAL */}
             {selectedNode && (
                 <div className="modal-overlay">
                     <div className="edit-modal">
@@ -562,7 +479,7 @@ export default function AdminDashboard({ treeData, setTreeData }) {
 
                         <div className="modal-footer">
                             <button className="btn-cancel" onClick={() => setSelectedNode(null)}>Cancel</button>
-                            <button className="btn-primary" onClick={handleSaveNode}>
+                            <button className="btn-primary" onClick={handleSaveNode} disabled={isSyncing}>
                                 <Save size={18} /> Update Member
                             </button>
                         </div>

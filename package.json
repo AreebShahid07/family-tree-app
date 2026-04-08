@@ -5,14 +5,19 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:vercel": "npx vercel dev",
+    "dev:api": "npx vercel dev --listen 3000",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
     "@vercel/analytics": "^1.6.1",
-    "appwrite": "^24.1.1",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.4.1",
+    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.344.0",
+    "mongodb": "^7.1.1",
     "react": "^18.2.0",
     "react-d3-tree": "^3.6.2",
     "react-dom": "^18.2.0",
@@ -22,10 +27,12 @@
     "@types/react": "^18.2.56",
     "@types/react-dom": "^18.2.19",
     "@vitejs/plugin-react": "^4.2.1",
-    "eslint": "^8.56.0",
+    "cors": "^2.8.6",
+    "eslint": "^9.23.0",
     "eslint-plugin-react": "^7.33.2",
-    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.5",
+    "express": "^5.2.1",
     "vite": "^5.1.4"
   }
 }

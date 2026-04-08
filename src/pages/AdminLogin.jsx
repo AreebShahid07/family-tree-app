@@ -17,8 +17,7 @@ export default function AdminLogin() {
         try {
             const result = await loginAdmin(username, password);
 
-            if (result?.token) {
-                localStorage.setItem('admin_token', result.token);
+            if (result?.ok) {
                 navigate('/admin/dashboard');
             } else {
                 setStatus('error');
